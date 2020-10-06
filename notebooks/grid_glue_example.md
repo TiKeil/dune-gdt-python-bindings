@@ -33,7 +33,7 @@ from dune.xt.functions import ConstantFunction, ExpressionFunction, GridFunction
 d = 2
 omega = ([0, 0], [1, 1])
 grid = make_cube_grid(Dim(d), Simplex(), lower_left=omega[0], upper_right=omega[1], num_elements=[1, 1])
-dd_grid = make_cube_dd_grid(grid, 0)
+dd_grid = make_cube_dd_grid(grid, 1)
 
 print(f'grid has {grid.size(0)} elements, {grid.size(d - 1)} edges and {grid.size(d)} vertices')
 ```
@@ -45,6 +45,12 @@ print(dd_grid)
 ```python
 print(dd_grid.dimension)
 dir(dd_grid)
+```
+
+```python
+print(dd_grid.local_grid(1))
+print(dd_grid.local_grid(1).centers())
+local_grid = dd_grid.local_grid(1)
 ```
 
 ```python
@@ -99,12 +105,12 @@ h = ExpressionFunction(dim_domain=Dim(d), variable='x', order=10, expression='ex
 Which often result from a discretization scheme, see the *tutorial on continuous Finite Elements for the stationary heat equation*.
 
 ```python
-from dune.gdt import DiscontinuousLagrangeSpace, DiscreteFunction
+# from dune.gdt import DiscontinuousLagrangeSpace, DiscreteFunction
 
-V_h = DiscontinuousLagrangeSpace(grid, order=1)
-v_h = DiscreteFunction(V_h, name='v_h')
+# V_h = DiscontinuousLagrangeSpace(grid, order=1)
+# v_h = DiscreteFunction(V_h, name='v_h')
 
-print(v_h.dofs.vector.sup_norm())
+# print(v_h.dofs.vector.sup_norm())
 ```
 
 # 2: visualizing functions
@@ -124,7 +130,7 @@ _ = visualize_function(h, grid)
 ```python
 from dune.xt.grid import visualize_grid
 
-_ = visualize_grid(grid)
+_ = visualize_grid(local_grid)
 ```
 
 The two grid elements are clearly visible in the above plot of $h$.
