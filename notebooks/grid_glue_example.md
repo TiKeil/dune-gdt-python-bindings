@@ -32,8 +32,8 @@ from dune.xt.functions import ConstantFunction, ExpressionFunction, GridFunction
 
 d = 2
 omega = ([0, 0], [1, 1])
-grid = make_cube_grid(Dim(d), Simplex(), lower_left=omega[0], upper_right=omega[1], num_elements=[1, 1])
-dd_grid = make_cube_dd_grid(grid, 1)
+grid = make_cube_grid(Dim(d), Cube(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
+dd_grid = make_cube_dd_grid(grid, 2)
 
 print(f'grid has {grid.size(0)} elements, {grid.size(d - 1)} edges and {grid.size(d)} vertices')
 ```
@@ -48,9 +48,9 @@ dir(dd_grid)
 ```
 
 ```python
-print(dd_grid.local_grid(1))
-print(dd_grid.local_grid(1).centers())
-local_grid = dd_grid.local_grid(1)
+print(dd_grid.local_grid(0))
+print(dd_grid.local_grid(0).centers())
+local_grid = dd_grid.local_grid(0)
 ```
 
 ```python
@@ -84,20 +84,10 @@ g = ConstantFunction(dim_domain=Dim(d), dim_range=(Dim(d), Dim(d)), value=A, nam
 For functions given by an expression, where we have to specify the polynomial order of the expression (or the approximation order for non-polynomial functions).
 
 Note that if the name of the variable is `Foo`, the components `Foo[0]`, ... `Foo[d - 1]` are availabble to be used in the expression.
-  
-*  We have functions which do not provide a gradient ...
 
 ```python
-from dune.xt.functions import ExpressionFunction
-
-h = ExpressionFunction(dim_domain=Dim(d), variable='x', order=10, expression='exp(x[0]*x[1])', name='h')
-```
-
-* ... and functions which provide a gradient, usefull for analytical solutions to compare to and compute $H^1$ errors
-
-```python
-h = ExpressionFunction(dim_domain=Dim(d), variable='x', order=10, expression='exp(x[0]*x[1])',
-                       gradient_expressions=['x[1]*exp(x[0]*x[1])', 'x[0]*exp(x[0]*x[1])'], name='h')
+h = ExpressionFunction(dim_domain=Dim(d), variable='x', order=10, expression='(0.5 - x[0])^2 * (0.5 - x[1])^2',
+                       gradient_expressions=['-2 * (0.5 - x[0]) * (0.5 - x[1])^2', '-2 * (0.5 - x[0])^2 * (0.5 - x[1])'], name='h')
 ```
 
 ## 1.3: discrete functions
@@ -105,12 +95,12 @@ h = ExpressionFunction(dim_domain=Dim(d), variable='x', order=10, expression='ex
 Which often result from a discretization scheme, see the *tutorial on continuous Finite Elements for the stationary heat equation*.
 
 ```python
-# from dune.gdt import DiscontinuousLagrangeSpace, DiscreteFunction
+from dune.gdt import DiscontinuousLagrangeSpace, DiscreteFunction
 
-# V_h = DiscontinuousLagrangeSpace(grid, order=1)
-# v_h = DiscreteFunction(V_h, name='v_h')
+V_h = DiscontinuousLagrangeSpace(grid, order=1)
+v_h = DiscreteFunction(V_h, name='v_h')
 
-# print(v_h.dofs.vector.sup_norm())
+print(v_h.dofs.vector.sup_norm())
 ```
 
 # 2: visualizing functions
@@ -128,16 +118,21 @@ _ = visualize_function(h, grid)
 **Note**: since functions are always visualized as piecewise linears on each grid element, `dune-grid` supports to write functions on a virtually refined grid, which may be an improvement for higher order data functions. To see this, let us have a look at the rather coarse grid consisting of two simplices:
 
 ```python
+_ = visualize_function(h, grid, subsampling=True)
+```
+
+```python
+_ = visualize_function(h, local_grid, subsampling=True)
+```
+
+## visualizing the grid
+
+```python
 from dune.xt.grid import visualize_grid
 
 _ = visualize_grid(local_grid)
 ```
 
-The two grid elements are clearly visible in the above plot of $h$.
-By enabling subsampling, we obtain a much smoother plot, where the underlying virtually refined grid is barely visible.
-
 ```python
-_ = visualize_function(h, grid, subsampling=True)
+_ = visualize_grid(grid)
 ```
-
-Subsampling may thus be a means to obtain pretty pictures, but it can also be misleading.
