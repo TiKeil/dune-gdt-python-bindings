@@ -21,9 +21,8 @@ import numpy as np
 np.warnings.filterwarnings('ignore') # silence numpys warnings
 ```
 
-## 1: creating functions
+## 1. Creating a DD grid
 
-We'll work in 2d in this tutorial since scalar functions in 2d can be best visualized within the notebook.
 Let's set up a 2d grid first, as seen in other tutorials and examples.
 
 ```python
@@ -32,100 +31,69 @@ from dune.xt.functions import ConstantFunction, ExpressionFunction, GridFunction
 
 d = 2
 omega = ([0, 0], [1, 1])
-grid = make_cube_grid(Dim(d), Cube(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
-dd_grid = make_cube_dd_grid(grid, 2)
+grid = make_cube_grid(Dim(d), Simplex(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
 
 print(f'grid has {grid.size(0)} elements, {grid.size(d - 1)} edges and {grid.size(d)} vertices')
+```
+
+Now we can use this grid as a macro grid for a dd grid.
+
+```python
+dd_grid = make_cube_dd_grid(grid, 2)
 ```
 
 ```python
 print(dd_grid)
 ```
 
+We can find some binded methods in the dd_grid
+
 ```python
-print(dd_grid.dimension)
-dir(dd_grid)
+print([f for f in dir(dd_grid) if f[0]!='_'])
 ```
 
 ```python
-print(dd_grid.local_grid(0))
-print(dd_grid.local_grid(0).centers())
+print(dd_grid.dimension)
+print(dd_grid.num_subdomains)
+print(dd_grid.boundary_subdomains)
+print(dd_grid.neighbors(1))
+```
+
+We can also construct a local grid on a subdomain. This grid can be treated completely analog to the standard grid
+
+```python
 local_grid = dd_grid.local_grid(0)
 ```
 
 ```python
-print(grid)
-print(grid.max_level)
-print(grid.size(0))
-dir(grid)
+print([f for f in dir(local_grid) if f[0]!='_'])
 ```
 
 ```python
-print(grid.centers())
+print(local_grid.centers())
+print(local_grid.max_level)
+print(local_grid.size(0))
 ```
 
-## 1.1: using the `ConstantFunction`
-
-For constant functions.
+We can define cg spaces for every local grid
 
 ```python
-from dune.xt.functions import ConstantFunction
+from dune.gdt import ContinuousLagrangeSpace
 
-alpha = 0.5
-f = ConstantFunction(dim_domain=Dim(d), dim_range=Dim(1), value=[alpha], name='f')
-# note that we have to provide [alpha], since scalar constant functions expect a vector of length 1
-
-A = [[1, 0], [0, 1]]
-g = ConstantFunction(dim_domain=Dim(d), dim_range=(Dim(d), Dim(d)), value=A, name='g')
-```
-
-## 1.2: using the `ExpressionFunction`
-
-For functions given by an expression, where we have to specify the polynomial order of the expression (or the approximation order for non-polynomial functions).
-
-Note that if the name of the variable is `Foo`, the components `Foo[0]`, ... `Foo[d - 1]` are availabble to be used in the expression.
-
-```python
-h = ExpressionFunction(dim_domain=Dim(d), variable='x', order=10, expression='(0.5 - x[0])^2 * (0.5 - x[1])^2',
-                       gradient_expressions=['-2 * (0.5 - x[0]) * (0.5 - x[1])^2', '-2 * (0.5 - x[0])^2 * (0.5 - x[1])'], name='h')
-```
-
-## 1.3: discrete functions
-
-Which often result from a discretization scheme, see the *tutorial on continuous Finite Elements for the stationary heat equation*.
-
-```python
-from dune.gdt import DiscontinuousLagrangeSpace, DiscreteFunction
-
-V_h = DiscontinuousLagrangeSpace(grid, order=1)
-v_h = DiscreteFunction(V_h, name='v_h')
-
-print(v_h.dofs.vector.sup_norm())
-```
-
-# 2: visualizing functions
-
-## 2.1: visualizing scalar functions in 2d
-
-We can easily visualize functions mapping from $\mathbb{R}^2 \to \mathbb{R}$. Internally, this is achieved by writing a vtk file to disk and displaying the file using K3D.
-
-```python
-from dune.xt.functions import visualize_function
-
-_ = visualize_function(h, grid)
-```
-
-**Note**: since functions are always visualized as piecewise linears on each grid element, `dune-grid` supports to write functions on a virtually refined grid, which may be an improvement for higher order data functions. To see this, let us have a look at the rather coarse grid consisting of two simplices:
-
-```python
-_ = visualize_function(h, grid, subsampling=True)
+micro_spaces = []
+local_grids = []
+for lg_idx in range(dd_grid.num_subdomains):
+    local_grid = dd_grid.local_grid(lg_idx)
+    local_gp = ContinuousLagrangeSpace(local_grid, order=1)
+    micro_spaces.append(local_gp)
+    local_grids.append(local_grid)
 ```
 
 ```python
-_ = visualize_function(h, local_grid, subsampling=True)
+micro_spaces
 ```
 
-## visualizing the grid
+## 2. Visualizing the grid
 
 ```python
 from dune.xt.grid import visualize_grid
@@ -134,5 +102,106 @@ _ = visualize_grid(local_grid)
 ```
 
 ```python
+_ = visualize_grid(dd_grid.local_grid(6))
+```
+
+```python
 _ = visualize_grid(grid)
+```
+
+```python
+print(dd_grid.boundary_subdomains)
+```
+
+```python
+print(dd_grid.neighbors(1))
+```
+
+## 3. Visualizing and interpolation of functions
+
+
+### 2.1 some functions
+
+Lets define some expression functions.
+
+```python
+f1 = ExpressionFunction(dim_domain=Dim(d), variable='x', order=10, expression='(0.5 - x[0])^2 * (0.5 - x[1])^2', 
+                         name='f1')
+f2 = ExpressionFunction(dim_domain=Dim(d), variable='x', order=10, expression='x[0]*x[1]', name='f2')
+```
+
+and some discrete function on the macro grid
+
+```python
+from dune.gdt import DiscontinuousLagrangeSpace, DiscreteFunction
+
+V_H = DiscontinuousLagrangeSpace(grid, order=1)
+v_H = DiscreteFunction(V_H, name='v_h')
+```
+
+Lets visualize f1 and f2 on the macro grid
+
+```python
+from dune.gdt import visualize_function
+
+_ = visualize_function(f1, grid, subsampling=True)
+```
+
+```python
+_ = visualize_function(f2, grid, subsampling=True)
+```
+
+### 2.2 Interpolate GridFunctions
+
+```python
+from dune.gdt import default_interpolation
+from dune.xt.functions import GridFunction
+
+f1_grid = GridFunction(grid, f1)
+f2_grid = GridFunction(grid, f2)
+
+f1_h = default_interpolation(f1_grid, V_H)
+f2_h = default_interpolation(f2_grid, V_H)
+```
+
+```python
+_ = visualize_function(f1_h, subsampling=True) # subsampling not working?
+```
+
+```python
+_ = visualize_function(f2_h, subsampling=False) # subsampling not working?
+```
+
+Interpolate f1 and f2 to two subdomains
+
+```python
+f1_grid_1 = GridFunction(local_grids[1], f1)
+f2_grid_1 = GridFunction(local_grids[1], f2)
+
+f1_h_1 = default_interpolation(f1_grid_1, micro_spaces[1])
+f2_h_1 = default_interpolation(f2_grid_1, micro_spaces[1])
+```
+
+```python
+_ = visualize_function(f1_h_1, subsampling=True) # subsampling not working?
+```
+
+```python
+_ = visualize_function(f2_h_1, subsampling=True) # subsampling not working?
+```
+
+```python
+f1_grid_4 = GridFunction(local_grids[4], f1)
+f2_grid_4 = GridFunction(local_grids[4], f2)
+
+f1_h_4 = default_interpolation(f1_grid_4, micro_spaces[4])
+f2_h_4 = default_interpolation(f2_grid_4, micro_spaces[4])
+```
+
+```python
+_ = visualize_function(f1_h_4, subsampling=True) # subsampling not working?
+```
+
+```python
+_ = visualize_function(f2_h_4, subsampling=True) # subsampling not working?
 ```
