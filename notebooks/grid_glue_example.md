@@ -205,3 +205,15 @@ _ = visualize_function(f1_h_4, subsampling=True) # subsampling not working?
 ```python
 _ = visualize_function(f2_h_4, subsampling=True) # subsampling not working?
 ```
+
+```python
+from dune.xt.functions import visualize_function_on_dd_grid
+
+_ = visualize_function_on_dd_grid(dd_grid, f1, [8])
+```
+
+```python
+from dune.xt.functions import visualize_function_on_dd_grid
+
+_ = visualize_function_on_dd_grid(dd_grid, f1, [1,2])
+```
