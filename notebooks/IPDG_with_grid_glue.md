@@ -31,15 +31,15 @@ from dune.xt.functions import ConstantFunction, ExpressionFunction, GridFunction
 
 d = 2
 omega = ([0, 0], [1, 1])
-grid = make_cube_grid(Dim(d), Simplex(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
+macro_grid = make_cube_grid(Dim(d), Simplex(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
 
-print(f'grid has {grid.size(0)} elements, {grid.size(d - 1)} edges and {grid.size(d)} vertices')
+print(f'grid has {macro_grid.size(0)} elements, {macro_grid.size(d - 1)} edges and {macro_grid.size(d)} vertices')
 ```
 
 Now we can use this grid as a macro grid for a dd grid.
 
 ```python
-dd_grid = make_cube_dd_grid(grid, 2)
+dd_grid = make_cube_dd_grid(macro_grid, 2)
 ```
 
 # 2. Creating micro CG spaces
@@ -88,23 +88,11 @@ ops = np.empty((S, S), dtype=object)
 ```
 
 ```python
-# grids[0]
-print(S)
-```
-
-```python
-print(type(S))
-list(range(S))
-dd_grid.local_grid(0)
-```
-
-```python
 for ss in range(S):
-    print(ss)
     space = spaces[ss]
-#     grid = dd_grid.local_grid(ss)
-#     grid = grids[ss]
-#     ops[ss,ss] = assemble_local_op(grid, space, d)
+    grid = dd_grid.local_grid(ss)
+    grid = grids[ss]
+    ops[ss,ss] = assemble_local_op(grid, space, d)
 ```
 
 ```python
