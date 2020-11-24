@@ -31,7 +31,7 @@ from dune.xt.functions import ConstantFunction, ExpressionFunction, GridFunction
 
 d = 2
 omega = ([0, 0], [1, 1])
-macro_grid = make_cube_grid(Dim(d), Simplex(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
+macro_grid = make_cube_grid(Dim(d), Cube(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
 
 print(f'grid has {macro_grid.size(0)} elements, {macro_grid.size(d - 1)} edges and {macro_grid.size(d)} vertices')
 ```
@@ -100,16 +100,19 @@ def assemble_coupling_ops(spaces, ss, nn):
     coupling_grid = dd_grid.coupling_grid(ss, nn) # CouplingGridProvider
     inside_space = spaces[ss]
     outside_space = spaces[nn]
-    coupling_op = MatrixOperator(
-        source=inside_space,
-        range=outside_space,
-        assembly_grid_view=coupling_grid
-    )
+#     coupling_op = MatrixOperator(
+#         source=inside_space,
+#         range=outside_space,
+#         assembly_grid_view=coupling_grid
+#     )
+
 #     coupling_op += LocalIntersectionBil...(
 #         LocalIPDGCouplingIntegrand(..., intersection_type=Coupling(coupling_grid))
 #     )
-    coupling_op.assemble()
-    return coupling_op
+#     coupling_op.assemble()
+#     return coupling_op
+
+    return None
 ```
 
 ```python
