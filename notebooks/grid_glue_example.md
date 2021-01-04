@@ -224,26 +224,3 @@ _ = visualize_function_on_dd_grid(f2, dd_grid)
 # TODO: how can we make this work?
 _ = visualize_function_on_dd_grid(f1, dd_grid, [1,2])
 ```
-
-## Couplings
-
-```python
-dd_grid.coupling_grid(0,1)
-```
-
-```python
-dd_grid.coupling_grid(0,3)
-```
-
-```python
-# correctly gives an error
-# dd_grid.coupling_grid(1,2)
-```
-
-```python
-mgi = dd_grid.macro_based_boundary_info(0)
-```
-
-```python
-mgi.type() # not working without a python intersection type
-```
