@@ -291,15 +291,20 @@ Given local bilinear forms, the purpose of the `MatrixOperator` in `dune-gdt` is
 
 ```python
 from dune.gdt import (
+    BilinearForm,
     MatrixOperator,
     make_element_sparsity_pattern,
     LocalLaplaceIntegrand,
     LocalElementIntegralBilinearForm,
 )
 
+sparsity_pattern = make_element_sparsity_pattern(V_h)
 a_h = MatrixOperator(grid, source_space=V_h, range_space=V_h,
-                     sparsity_pattern=make_element_sparsity_pattern(V_h))
-a_h += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GF(grid, kappa, dim_range=(Dim(d), Dim(d)))))
+                     sparsity_pattern=sparsity_pattern)
+a_h_local = LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GF(grid, kappa, dim_range=(Dim(d), Dim(d)))))
+a_form = BilinearForm(grid)
+a_form += a_h_local
+a_h.append(a_form)
 ```
 
 A few notes regarding the above code:
@@ -321,6 +326,8 @@ We therefore require a means to identify all DoFs of $V_h$ associated with the D
 
 ```python
 from dune.gdt import DirichletConstraints
+
+print(boundary_info)
 
 dirichlet_constraints = DirichletConstraints(boundary_info, V_h)
 ```
@@ -499,7 +506,10 @@ l_h += LocalElementIntegralFunctional(LocalElementProductIntegrand(GF(grid, 1)).
 
 a_h = MatrixOperator(grid, source_space=V_h, range_space=V_h,
                      sparsity_pattern=make_element_sparsity_pattern(V_h))
-a_h += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GF(grid, kappa, dim_range=(Dim(d), Dim(d)))))
+a_h_local = LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GF(grid, kappa, dim_range=(Dim(d), Dim(d)))))
+a_form = BilinearForm(grid)
+a_form += a_h_local
+a_h.append(a_form)
 
 walker = Walker(grid)
 walker.append(a_h)

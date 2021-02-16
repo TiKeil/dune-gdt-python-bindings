@@ -2,6 +2,7 @@ from dune.xt.grid import AllDirichletBoundaryInfo, Dim, DirichletBoundary, Walke
 from dune.xt.functions import GridFunction as GF
 
 from dune.gdt import (
+    BilinearForm,
     ContinuousLagrangeSpace,
     DirichletConstraints,
     DiscreteFunction,
@@ -52,7 +53,10 @@ def discretize_elliptic_cg_dirichlet_zero(grid, diffusion, source):
     
     a_h = MatrixOperator(grid, source_space=V_h, range_space=V_h,
                          sparsity_pattern=make_element_sparsity_pattern(V_h))
-    a_h += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(diffusion))
+    a_h_local = LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(diffusion))
+    a_form = BilinearForm(grid)
+    a_form += a_h_local
+    a_h.append(a_form)
     
     dirichlet_constraints = DirichletConstraints(boundary_info, V_h)
     
@@ -109,7 +113,10 @@ def discretize_elliptic_cg_dirichlet(grid, diffusion, source, dirichlet_values):
     
     a_h = MatrixOperator(grid, source_space=V_h, range_space=V_h,
                          sparsity_pattern=make_element_sparsity_pattern(V_h))
-    a_h += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(diffusion))
+    a_h_local = LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(diffusion))
+    a_form = BilinearForm(grid)
+    a_form += a_h_local
+    a_h.append(a_form)
     
     dirichlet_constraints = DirichletConstraints(boundary_info, V_h)
     dirichlet_values = boundary_interpolation(dirichlet_values, V_h, boundary_info, DirichletBoundary())
