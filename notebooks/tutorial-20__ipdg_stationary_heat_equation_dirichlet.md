@@ -68,6 +68,117 @@ print(inspect.getsource(discretize_elliptic_ipdg_dirichlet_zero))
 ```
 
 ```python
+from numbers import Number
+
+from dune.xt.grid import (
+    AllDirichletBoundaryInfo,
+    ApplyOnCustomBoundaryIntersections,
+    ApplyOnInnerIntersectionsOnce,
+    ApplyOnInnerIntersections,
+    ApplyOnAllIntersectionsOnce,
+    ApplyOnAllIntersections,
+    Dim,
+    DirichletBoundary,
+    Walker,
+)
+from dune.xt.functions import GridFunction as GF
+```
+
+```python
+from dune.gdt import (
+    BilinearForm,
+    DiscontinuousLagrangeSpace,
+    DiscreteFunction,
+    LocalElementIntegralBilinearForm,
+    LocalElementIntegralFunctional,
+    LocalElementProductIntegrand,
+    LocalCouplingIntersectionIntegralBilinearForm,
+    LocalIPDGBoundaryPenaltyIntegrand,
+    LocalIPDGInnerPenaltyIntegrand,
+    LocalIntersectionIntegralBilinearForm,
+    LocalLaplaceIntegrand,
+    LocalLaplaceIPDGDirichletCouplingIntegrand,
+    LocalLaplaceIPDGInnerCouplingIntegrand,
+    MatrixOperator,
+    VectorFunctional,
+    estimate_combined_inverse_trace_inequality_constant,
+    estimate_element_to_intersection_equivalence_constant,
+    make_element_and_intersection_sparsity_pattern,
+)
+```
+
+```python
+print(grid)
+ApplyOnInnerIntersectionsOnce(grid)
+```
+
+```python
+d = grid.dimension
+diffusion = GF(grid, kappa, dim_range=(Dim(d), Dim(d)))
+source = GF(grid, f)
+weight = GF(grid, 1, dim_range=(Dim(d), Dim(d)))
+
+boundary_info = AllDirichletBoundaryInfo(grid)
+penalty_parameter = 16
+symmetry_factor = 1
+V_h = DiscontinuousLagrangeSpace(grid, order=1)
+if not penalty_parameter:
+    # TODO: check if we need to include diffusion for the coercivity here!
+    # TODO: each is a grid walk, compute this in one grid walk with the sparsity pattern
+    C_G = estimate_element_to_intersection_equivalence_constant(grid)
+    C_M_times_1_plus_C_T = estimate_combined_inverse_trace_inequality_constant(space)
+    penalty_parameter = C_G*C_M_times_1_plus_C_T
+    if symmetry_factor == 1:
+        penalty_parameter *= 4
+assert isinstance(penalty_parameter, Number)
+assert penalty_parameter > 0
+
+l_h = VectorFunctional(grid, source_space=V_h)
+l_h += LocalElementIntegralFunctional(LocalElementProductIntegrand(GF(grid, 1)).with_ansatz(source))
+
+a_h = MatrixOperator(grid, source_space=V_h, range_space=V_h,
+                     sparsity_pattern=make_element_and_intersection_sparsity_pattern(V_h))
+a_form = BilinearForm(grid)
+a_form += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(diffusion))
+a_form += (LocalCouplingIntersectionIntegralBilinearForm(
+                LocalLaplaceIPDGInnerCouplingIntegrand(symmetry_factor, diffusion, weight)
+                + LocalIPDGInnerPenaltyIntegrand(penalty_parameter, weight)),
+            ApplyOnInnerIntersectionsOnce(grid))
+a_form += (LocalIntersectionIntegralBilinearForm(
+                LocalIPDGBoundaryPenaltyIntegrand(penalty_parameter, weight)
+                + LocalLaplaceIPDGDirichletCouplingIntegrand(symmetry_factor, diffusion)),
+            ApplyOnCustomBoundaryIntersections(grid, boundary_info, DirichletBoundary()))
+
+a_h.append(a_form)
+```
+
+```python
+print(grid)
+```
+
+```python
+walker = Walker(grid)
+walker.append(a_h)
+walker.append(l_h)
+```
+
+```python
+print(walker)
+```
+
+```python
+walker.walk()
+```
+
+```python
+u_h = DiscreteFunction(V_h, name='u_h')
+a_h.apply_inverse(l_h.vector, u_h.dofs.vector)
+
+from dune.gdt import visualize_function
+_ = visualize_function(u_h)
+```
+
+```python
 from dune.gdt import visualize_function
 
 u_h = discretize_elliptic_ipdg_dirichlet_zero(
