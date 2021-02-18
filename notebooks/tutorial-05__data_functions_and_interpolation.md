@@ -303,7 +303,7 @@ print(f'using a lambda expression in an interpolation test is {t_python/t_dune} 
 
 ## 5.2: discretization test
 
-For a mor realistic comparison, we use the `discretize_elliptic_cg_dirichlet_zero` function as explained in the *tutorial on continuous Finite Elements for the stationary heat equation*.
+For a more realistic comparison, we use the `discretize_elliptic_cg_dirichlet_zero` function as explained in the *tutorial on continuous Finite Elements for the stationary heat equation*.
 
 ```python
 from discretize_elliptic_cg import discretize_elliptic_cg_dirichlet_zero
