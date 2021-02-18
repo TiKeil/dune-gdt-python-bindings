@@ -53,9 +53,8 @@ def discretize_elliptic_cg_dirichlet_zero(grid, diffusion, source):
     
     a_h = MatrixOperator(grid, source_space=V_h, range_space=V_h,
                          sparsity_pattern=make_element_sparsity_pattern(V_h))
-    a_h_local = LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(diffusion))
     a_form = BilinearForm(grid)
-    a_form += a_h_local
+    a_form += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(diffusion))
     a_h.append(a_form)
     
     dirichlet_constraints = DirichletConstraints(boundary_info, V_h)

@@ -301,9 +301,8 @@ from dune.gdt import (
 sparsity_pattern = make_element_sparsity_pattern(V_h)
 a_h = MatrixOperator(grid, source_space=V_h, range_space=V_h,
                      sparsity_pattern=sparsity_pattern)
-a_h_local = LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GF(grid, kappa, dim_range=(Dim(d), Dim(d)))))
 a_form = BilinearForm(grid)
-a_form += a_h_local
+a_form += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GF(grid, kappa, dim_range=(Dim(d), Dim(d)))))
 a_h.append(a_form)
 ```
 
@@ -506,9 +505,8 @@ l_h += LocalElementIntegralFunctional(LocalElementProductIntegrand(GF(grid, 1)).
 
 a_h = MatrixOperator(grid, source_space=V_h, range_space=V_h,
                      sparsity_pattern=make_element_sparsity_pattern(V_h))
-a_h_local = LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GF(grid, kappa, dim_range=(Dim(d), Dim(d)))))
 a_form = BilinearForm(grid)
-a_form += a_h_local
+a_form += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GF(grid, kappa, dim_range=(Dim(d), Dim(d)))))
 a_h.append(a_form)
 
 walker = Walker(grid)
