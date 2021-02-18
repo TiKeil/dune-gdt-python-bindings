@@ -26,6 +26,16 @@ np.warnings.filterwarnings('ignore') # silence numpys warnings
 Let's set up a 2d grid first, as seen in other tutorials and examples.
 
 ```python
+from dune.xt.grid import Dim
+from dune.xt.functions import ConstantFunction, ExpressionFunction
+
+d = 2
+omega = ([0, 0], [1, 1])
+
+kappa = ConstantFunction(dim_domain=Dim(d), dim_range=Dim(1), value=[1.], name='kappa')
+# note that we need to prescribe the approximation order, which determines the quadrature on each element
+f = ExpressionFunction(dim_domain=Dim(d), variable='x', expression='exp(x[0]*x[1])', order=3, name='f')
+
 from dune.xt.grid import Dim, Cube, Simplex, make_cube_grid, make_cube_dd_grid
 from dune.xt.functions import ConstantFunction, ExpressionFunction, GridFunction as GF
 
@@ -71,14 +81,16 @@ f = ExpressionFunction(dim_domain=Dim(d), variable='x', expression='exp(x[0]*x[1
 ```
 
 ```python
-from dune.gdt import (MatrixOperator, make_element_sparsity_pattern, 
+from dune.gdt import (BilinearForm, MatrixOperator, make_element_sparsity_pattern, 
                       LocalLaplaceIntegrand, LocalElementIntegralBilinearForm)
 
 
 def assemble_local_op(grid, space, d):
     a_h = MatrixOperator(grid, source_space=space, range_space=space,
                          sparsity_pattern=make_element_sparsity_pattern(space))
-    a_h += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GridFunction(grid, kappa, dim_range=(Dim(d), Dim(d)))))
+    a_form = BilinearForm(grid)
+    a_form += LocalElementIntegralBilinearForm(LocalLaplaceIntegrand(GridFunction(grid, kappa, dim_range=(Dim(d), Dim(d)))))
+    a_h.append(a_form)
     a_h.assemble()
     return a_h
 ```
@@ -100,11 +112,10 @@ def assemble_coupling_ops(spaces, ss, nn):
     coupling_grid = dd_grid.coupling_grid(ss, nn) # CouplingGridProvider
     inside_space = spaces[ss]
     outside_space = spaces[nn]
-#     coupling_op = MatrixOperator(
-#         source=inside_space,
-#         range=outside_space,
-#         assembly_grid_view=coupling_grid
-#     )
+    coupling_op = MatrixOperator(coupling_grid
+        inside_space,
+        outside_space
+    )
 
 #     coupling_op += LocalIntersectionBil...(
 #         LocalIPDGCouplingIntegrand(..., intersection_type=Coupling(coupling_grid))
