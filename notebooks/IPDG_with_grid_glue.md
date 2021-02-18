@@ -26,16 +26,6 @@ np.warnings.filterwarnings('ignore') # silence numpys warnings
 Let's set up a 2d grid first, as seen in other tutorials and examples.
 
 ```python
-from dune.xt.grid import Dim
-from dune.xt.functions import ConstantFunction, ExpressionFunction
-
-d = 2
-omega = ([0, 0], [1, 1])
-
-kappa = ConstantFunction(dim_domain=Dim(d), dim_range=Dim(1), value=[1.], name='kappa')
-# note that we need to prescribe the approximation order, which determines the quadrature on each element
-f = ExpressionFunction(dim_domain=Dim(d), variable='x', expression='exp(x[0]*x[1])', order=3, name='f')
-
 from dune.xt.grid import Dim, Cube, Simplex, make_cube_grid, make_cube_dd_grid
 from dune.xt.functions import ConstantFunction, ExpressionFunction, GridFunction as GF
 
@@ -81,8 +71,12 @@ f = ExpressionFunction(dim_domain=Dim(d), variable='x', expression='exp(x[0]*x[1
 ```
 
 ```python
-from dune.gdt import (BilinearForm, MatrixOperator, make_element_sparsity_pattern, 
-                      LocalLaplaceIntegrand, LocalElementIntegralBilinearForm)
+from dune.gdt import (BilinearForm, 
+                      MatrixOperator, 
+                      make_element_sparsity_pattern, 
+                      make_element_and_intersection_sparsity_pattern,
+                      LocalLaplaceIntegrand, 
+                      LocalElementIntegralBilinearForm)
 
 
 def assemble_local_op(grid, space, d):
@@ -112,18 +106,23 @@ def assemble_coupling_ops(spaces, ss, nn):
     coupling_grid = dd_grid.coupling_grid(ss, nn) # CouplingGridProvider
     inside_space = spaces[ss]
     outside_space = spaces[nn]
-    coupling_op = MatrixOperator(coupling_grid
+    coupling_op = MatrixOperator(coupling_grid,
         inside_space,
-        outside_space
+        outside_space,
+        # ***** which sparsity pattern ******
+        sparsity_pattern=make_element_and_intersection_sparsity_pattern(inside_space)
     )
-
-#     coupling_op += LocalIntersectionBil...(
+    coupling_form = BilinearForm(coupling_grid)
+    # **** find the correct bilinear form, integrands and filter.  !!! 
+    coupling_form += (LocalCouplingIntersectionIntegralBilinearForm(
+                    LocalLaplaceIPDGInnerCouplingIntegrand(symmetry_factor, diffusion, weight)
+                    + LocalIPDGInnerPenaltyIntegrand(penalty_parameter, weight)),
+                ApplyOnInnerIntersectionsOnce(grid))
+    coupling_op.append(coupling_form)
 #         LocalIPDGCouplingIntegrand(..., intersection_type=Coupling(coupling_grid))
 #     )
-#     coupling_op.assemble()
-#     return coupling_op
-
-    return None
+    coupling_op.assemble()
+    return coupling_op
 ```
 
 ```python
