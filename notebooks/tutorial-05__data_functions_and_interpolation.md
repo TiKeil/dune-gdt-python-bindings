@@ -257,7 +257,7 @@ grid = make_cube_grid(Dim(d), Simplex(), lower_left=omega[0], upper_right=omega[
 grid.global_refine(1)
 t = time() - t
 
-print(f'grid has {grid.size(0)} elements, {grid.size(d - 1)} edges and {grid.size(d)} vertices (took {t}s)')
+print(f'grid has {grid.size(0)} elements, {grid.size(d - 1)} edges and {grid.size(d)} vertices (took {t:.5f}s)')
 ```
 
 ```python
@@ -281,7 +281,7 @@ h_dune_expression =  GridFunction(grid,
 h_dune_expression_h = default_interpolation(h_dune_expression, V_h)
 
 t_dune = time() - t
-print(f'interpolating h_dune_expression took {t_dune}s')
+print(f'interpolating h_dune_expression took {t_dune:.5f}s')
 ```
 
 ```python
@@ -294,11 +294,11 @@ h_python_lambda = GF(grid,
 h_python_lambda_h = default_interpolation(h_python_lambda, V_h)
 
 t_python = time() - t
-print(f'interpolating h_python_lambda took {t_python}s')
+print(f'interpolating h_python_lambda took {t_python:.5f}s')
 ```
 
 ```python
-print(f'using a lambda expression in an interpolation test is {t_python/t_dune} times slower')
+print(f'using a lambda expression in an interpolation test is {t_python/t_dune:.5f} times slower')
 ```
 
 ## 5.2: discretization test
@@ -313,7 +313,7 @@ t = time()
 u_h_dune = discretize_elliptic_cg_dirichlet_zero(grid, h_dune_expression, 1)
 
 t_dune = time() - t
-print(f'discretizing using h_dune_expression took {t_dune}s')
+print(f'discretizing using h_dune_expression took {t_dune:.5f}s')
 ```
 
 ```python
@@ -322,11 +322,11 @@ t = time()
 u_h_dune = discretize_elliptic_cg_dirichlet_zero(grid, h_python_lambda, 1)
 
 t_python = time() - t
-print(f'discretizing using h_python_lambda took {t_python}s')
+print(f'discretizing using h_python_lambda took {t_python:.5f}s')
 ```
 
 ```python
-print(f'using a lambda expression in a discretization test is {t_python/t_dune} times slower')
+print(f'using a lambda expression in a discretization test is {t_python/t_dune:.5f} times slower')
 ```
 
 This test is much more realistic than the pure interpolation one. Since evaluating the diffusion is only a small part of the overall computation, the performance loss using the Python lambda is much smaller.
