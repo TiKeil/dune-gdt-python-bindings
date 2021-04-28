@@ -104,15 +104,17 @@ for ss in range(S):
 
 ```python
 from dune.gdt import LocalCouplingIntersectionIntegralBilinearForm, LocalLaplaceIPDGInnerCouplingIntegrand
+from dune.gdt import LocalIPDGInnerPenaltyIntegrand
+from dune.gdt import estimate_combined_inverse_trace_inequality_constant
+from dune.gdt import estimate_element_to_intersection_equivalence_constant
+
 from dune.xt.grid import ApplyOnInnerIntersectionsOnce
 
 def assemble_coupling_ops(spaces, ss, nn):
     coupling_grid = dd_grid.coupling_grid(ss, nn) # CouplingGridProvider
     inside_space = spaces[ss]
     outside_space = spaces[nn]
-#     l_grid = dd_grid.local_grid(ss)
 #     sparsity_pattern = make_element_and_intersection_sparsity_pattern(inside_space)
-#     print('build_operator')
     coupling_op = MatrixOperator(
         coupling_grid,
         inside_space,
@@ -120,22 +122,42 @@ def assemble_coupling_ops(spaces, ss, nn):
         # ***** which sparsity pattern ******
 #          sparsity_pattern
       )
+    
     coupling_form = BilinearForm(coupling_grid)
+    
     # **** find the correct bilinear form, integrands and filter.  !!! 
     symmetry_factor = 1
     weight = 1
-    diffusion = kappa
-    weight = GF(coupling_grid, weight, dim_range=(Dim(d), Dim(d)))
-    diffusion = GF(coupling_grid, kappa, dim_range=(Dim(d), Dim(d)))
-    coupling_form += (LocalCouplingIntersectionIntegralBilinearForm(
-                    LocalLaplaceIPDGInnerCouplingIntegrand(symmetry_factor, diffusion, weight)
-                    + LocalIPDGInnerPenaltyIntegrand(penalty_parameter, weight)),
-                ApplyOnInnerIntersectionsOnce(coupling_grid))
-#     coupling_op.append(coupling_form)
-#         LocalIPDGCouplingIntegrand(..., intersection_type=Coupling(coupling_grid))
-#     )
-#     coupling_op.assemble()
-    return coupling_grid
+    penalty_parameter=None
+    
+    if not penalty_parameter:
+        # TODO: check if we need to include diffusion for the coercivity here!
+        # TODO: each is a grid walk, compute this in one grid walk with the sparsity pattern
+        C_G = estimate_element_to_intersection_equivalence_constant(grid)
+        # TODO: lapacke missing ! 
+#         C_M_times_1_plus_C_T = estimate_combined_inverse_trace_inequality_constant(space)
+        penalty_parameter = C_G #*C_M_times_1_plus_C_T
+        if symmetry_factor == 1:
+            penalty_parameter *= 4
+    assert penalty_parameter > 0
+    
+    # grid, local_grid or coupling_grid
+    diffusion = GridFunction(grid, kappa, dim_range=(Dim(d), Dim(d)))
+    weight = GridFunction(grid, weight, dim_range=(Dim(d), Dim(d)))
+    
+    coupling_integrand = LocalLaplaceIPDGInnerCouplingIntegrand(symmetry_factor, diffusion, weight)
+    #         LocalIPDGCouplingIntegrand(..., intersection_type=Coupling(coupling_grid))
+    penalty_integrand = LocalIPDGInnerPenaltyIntegrand(penalty_parameter, weight)
+    
+    local_bilinear_form = LocalCouplingIntersectionIntegralBilinearForm(coupling_integrand + penalty_integrand) 
+    
+    filter_ = ApplyOnInnerIntersectionsOnce(coupling_grid)
+    
+    coupling_form += (local_bilinear_form, filter_)
+    
+    coupling_op.append(coupling_form)
+    coupling_op.assemble()
+    return coupling_op
 ```
 
 ```python
