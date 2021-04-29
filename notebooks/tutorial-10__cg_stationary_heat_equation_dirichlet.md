@@ -367,7 +367,7 @@ print(f'Dirichlet DoFs: {dirichlet_constraints.dirichlet_DoFs}')
 
 ## 1.7: solving the linear system
 
-After walking the grid, the bilinra form and linear functional are assembled w.r.t. $V_h$ and we constrain them to include the handling of the Dirichlet boundary condition.
+After walking the grid, the bilinear form and linear functional are assembled w.r.t. $V_h$ and we constrain them to include the handling of the Dirichlet boundary condition.
 
 ```python
 dirichlet_constraints.apply(a_h.matrix, l_h.vector)

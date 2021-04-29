@@ -27,11 +27,15 @@ Let's set up a 2d grid first, as seen in other tutorials and examples.
 
 ```python
 from dune.xt.grid import Dim, Cube, Simplex, make_cube_grid, make_cube_dd_grid
+from dune.xt.grid import AllDirichletBoundaryInfo
 from dune.xt.functions import ConstantFunction, ExpressionFunction, GridFunction as GF
 
 d = 2
 omega = ([0, 0], [1, 1])
-macro_grid = make_cube_grid(Dim(d), Cube(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
+macro_grid = make_cube_grid(Dim(d), Simplex(), lower_left=omega[0], upper_right=omega[1], num_elements=[2, 2])
+macro_grid.global_refine(1)
+
+macro_boundary_info = AllDirichletBoundaryInfo(macro_grid)
 
 print(f'grid has {macro_grid.size(0)} elements, {macro_grid.size(d - 1)} edges and {macro_grid.size(d)} vertices')
 ```
@@ -39,7 +43,13 @@ print(f'grid has {macro_grid.size(0)} elements, {macro_grid.size(d - 1)} edges a
 Now we can use this grid as a macro grid for a dd grid.
 
 ```python
-dd_grid = make_cube_dd_grid(macro_grid, 2)
+# start with no refinement on the subdomains
+dd_grid = make_cube_dd_grid(macro_grid, 0)
+```
+
+```python
+from dune.xt.grid import visualize_grid
+_ = visualize_grid(macro_grid)
 ```
 
 # 2. Creating micro CG spaces
@@ -71,22 +81,36 @@ f = ExpressionFunction(dim_domain=Dim(d), variable='x', expression='exp(x[0]*x[1
 ```
 
 ```python
-from dune.gdt import (BilinearForm, 
-                      MatrixOperator, 
-                      make_element_sparsity_pattern, 
+from dune.gdt import (BilinearForm,
+                      MatrixOperator,
+                      make_element_sparsity_pattern,
                       make_element_and_intersection_sparsity_pattern,
-                      LocalLaplaceIntegrand, 
-                      LocalElementIntegralBilinearForm)
+                      LocalLaplaceIntegrand,
+                      LocalElementIntegralBilinearForm,
+                      DirichletConstraints)
+from dune.xt.grid import Walker
 
 
-def assemble_local_op(grid, space, d):
+def assemble_local_op(grid, space, boundary_info, d):
     a_h = MatrixOperator(grid, source_space=space, range_space=space,
                          sparsity_pattern=make_element_sparsity_pattern(space))
     a_form = BilinearForm(grid)
     a_form += LocalElementIntegralBilinearForm(
         LocalLaplaceIntegrand(GridFunction(grid, kappa, dim_range=(Dim(d), Dim(d)))))
     a_h.append(a_form)
+    
+    dirichlet_constraints = DirichletConstraints(boundary_info, space)
+    
+    #walker on local grid
+    walker = Walker(grid)
+    walker.append(a_h)
+    walker.append(dirichlet_constraints)
+    walker.walk()
+    
+    print(dirichlet_constraints.dirichlet_DoFs)   # < -- check this !! 
+    print(a_h.matrix)
     a_h.assemble()
+    print(a_h.matrix.__repr__())
     return a_h
 ```
 
@@ -98,8 +122,8 @@ ops = np.empty((S, S), dtype=object)
 for ss in range(S):
     space = spaces[ss]
     grid = dd_grid.local_grid(ss)
-    grid = grids[ss]
-    ops[ss,ss] = assemble_local_op(grid, space, d)
+    boundary_info = dd_grid.macro_based_boundary_info(ss, macro_boundary_info)
+    ops[ss, ss] = assemble_local_op(grid, space, boundary_info, d)
 ```
 
 ```python
@@ -128,7 +152,7 @@ def assemble_coupling_ops(spaces, ss, nn):
     # **** find the correct bilinear form, integrands and filter.  !!! 
     symmetry_factor = 1
     weight = 1
-    penalty_parameter=None
+    penalty_parameter=16
     
     if not penalty_parameter:
         # TODO: check if we need to include diffusion for the coercivity here!
