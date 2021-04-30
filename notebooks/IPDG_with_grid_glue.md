@@ -44,7 +44,7 @@ Now we can use this grid as a macro grid for a dd grid.
 
 ```python
 # start with no refinement on the subdomains
-dd_grid = make_cube_dd_grid(macro_grid, 0)
+dd_grid = make_cube_dd_grid(macro_grid, 2)
 ```
 
 ```python
@@ -107,7 +107,8 @@ def assemble_local_op(grid, space, boundary_info, d):
     walker.append(dirichlet_constraints)
     walker.walk()
     
-    print(dirichlet_constraints.dirichlet_DoFs)   # < -- check this !! 
+#     print('centers: ', grid.centers())
+#     print(dirichlet_constraints.dirichlet_DoFs)
     print(a_h.matrix)
     a_h.assemble()
     print(a_h.matrix.__repr__())
@@ -152,17 +153,17 @@ def assemble_coupling_ops(spaces, ss, nn):
     # **** find the correct bilinear form, integrands and filter.  !!! 
     symmetry_factor = 1
     weight = 1
-    penalty_parameter=16
+    penalty_parameter= 16
     
     if not penalty_parameter:
         # TODO: check if we need to include diffusion for the coercivity here!
         # TODO: each is a grid walk, compute this in one grid walk with the sparsity pattern
-        C_G = estimate_element_to_intersection_equivalence_constant(grid)
+#         C_G = estimate_element_to_intersection_equivalence_constant(grid)
         # TODO: lapacke missing ! 
 #         C_M_times_1_plus_C_T = estimate_combined_inverse_trace_inequality_constant(space)
-        penalty_parameter = C_G #*C_M_times_1_plus_C_T
-        if symmetry_factor == 1:
-            penalty_parameter *= 4
+#         penalty_parameter = C_G *C_M_times_1_plus_C_T
+#         if symmetry_factor == 1:
+#             penalty_parameter *= 4
     assert penalty_parameter > 0
     
     # grid, local_grid or coupling_grid
@@ -187,8 +188,20 @@ def assemble_coupling_ops(spaces, ss, nn):
 ```python
 for ss in range(S):
     for nn in dd_grid.neighbors(ss):
-        ops[ss][nn] = assemble_coupling_ops(spaces, ss, nn)
-        print(ops[ss][nn].matrix)
+        coupling_ops = assemble_coupling_ops(spaces, ss, nn)
+        # additional terms to diagonal
+        ops[ss][ss] += coupling_ops[0]
+        ops[nn][nn] += coupling_ops[3]
+        
+        # coupling terms
+        if ops[ss][nn] is None:
+            ops[ss][nn] = [coupling_ops[1]]
+        else:
+            ops[ss][nn] += coupling_ops[1]
+        if ops[nn][ss] is None:
+            ops[nn][ss] = [coupling_ops[2]]
+        else:
+            ops[nn][ss] += coupling_ops[2]
 ```
 
 ```python
