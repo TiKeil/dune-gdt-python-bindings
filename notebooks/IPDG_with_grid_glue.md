@@ -155,6 +155,7 @@ def assemble_coupling_ops(spaces, ss, nn):
     inside_space = spaces[ss]
     outside_space = spaces[nn]
 #     sparsity_pattern = make_element_and_intersection_sparsity_pattern(inside_space)
+
     coupling_op = MatrixOperator(
         coupling_grid,
         inside_space,
@@ -162,10 +163,10 @@ def assemble_coupling_ops(spaces, ss, nn):
         # ***** which sparsity pattern ******
 #          sparsity_pattern
       )
-    
+
     coupling_form = BilinearForm(coupling_grid)
     
-    # **** find the correct bilinear form, integrands and filter.  !!! 
+#     # **** find the correct bilinear form, integrands and filter.  !!! 
     symmetry_factor = 1
     weight = 1
     penalty_parameter= 16
@@ -193,12 +194,16 @@ def assemble_coupling_ops(spaces, ss, nn):
     local_bilinear_form = LocalCouplingIntersectionIntegralBilinearForm(integrand) 
     
     filter_ = ApplyOnInnerIntersectionsOnce(coupling_grid)
-    
     coupling_form += (local_bilinear_form, filter_)
-    print(coupling_form)
+    
     coupling_op.append(coupling_form)
-    coupling_op.assemble()
-    return coupling_op
+    
+    #walker on coupling grid
+    walker = Walker(coupling_grid)
+    walker.append(coupling_op)
+    walker.walk()
+#     coupling_op.assemble()
+#     return coupling_op
 ```
 
 ```python
