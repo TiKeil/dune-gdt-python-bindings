@@ -48,6 +48,15 @@ dd_grid = make_cube_dd_grid(macro_grid, 2)
 ```
 
 ```python
+print(dd_grid)
+print(macro_grid)
+```
+
+```python
+print(dd_grid.boundary_subdomains)
+```
+
+```python
 from dune.xt.grid import visualize_grid
 _ = visualize_grid(macro_grid)
 ```
@@ -109,9 +118,11 @@ def assemble_local_op(grid, space, boundary_info, d):
     
 #     print('centers: ', grid.centers())
 #     print(dirichlet_constraints.dirichlet_DoFs)
-    print(a_h.matrix)
+#     print(a_h.matrix)
     a_h.assemble()
-    print(a_h.matrix.__repr__())
+    dirichlet_constraints.apply(a_h.matrix)
+    # TODO: first dirichlets constraints, then assemble does not work !! 
+#     print(a_h.matrix.__repr__())
     return a_h
 ```
 
@@ -135,6 +146,10 @@ from dune.gdt import estimate_element_to_intersection_equivalence_constant
 
 from dune.xt.grid import ApplyOnInnerIntersectionsOnce
 
+from dune.xt.grid import LeafIntersection, CouplingIntersection
+coupling = CouplingIntersection(dd_grid)
+print(coupling)
+
 def assemble_coupling_ops(spaces, ss, nn):
     coupling_grid = dd_grid.coupling_grid(ss, nn) # CouplingGridProvider
     inside_space = spaces[ss]
@@ -155,7 +170,7 @@ def assemble_coupling_ops(spaces, ss, nn):
     weight = 1
     penalty_parameter= 16
     
-    if not penalty_parameter:
+#     if not penalty_parameter:
         # TODO: check if we need to include diffusion for the coercivity here!
         # TODO: each is a grid walk, compute this in one grid walk with the sparsity pattern
 #         C_G = estimate_element_to_intersection_equivalence_constant(grid)
@@ -170,16 +185,17 @@ def assemble_coupling_ops(spaces, ss, nn):
     diffusion = GridFunction(grid, kappa, dim_range=(Dim(d), Dim(d)))
     weight = GridFunction(grid, weight, dim_range=(Dim(d), Dim(d)))
     
-    coupling_integrand = LocalLaplaceIPDGInnerCouplingIntegrand(symmetry_factor, diffusion, weight)
-    #         LocalIPDGCouplingIntegrand(..., intersection_type=Coupling(coupling_grid))
-    penalty_integrand = LocalIPDGInnerPenaltyIntegrand(penalty_parameter, weight)
-    
-    local_bilinear_form = LocalCouplingIntersectionIntegralBilinearForm(coupling_integrand + penalty_integrand) 
+    coupling_integrand = LocalLaplaceIPDGInnerCouplingIntegrand(symmetry_factor, diffusion, weight,
+                                                                intersection_type=coupling)
+    penalty_integrand = LocalIPDGInnerPenaltyIntegrand(penalty_parameter, weight,
+                                                      intersection_type=coupling)
+    integrand = coupling_integrand + penalty_integrand
+    local_bilinear_form = LocalCouplingIntersectionIntegralBilinearForm(integrand) 
     
     filter_ = ApplyOnInnerIntersectionsOnce(coupling_grid)
     
     coupling_form += (local_bilinear_form, filter_)
-    
+    print(coupling_form)
     coupling_op.append(coupling_form)
     coupling_op.assemble()
     return coupling_op
