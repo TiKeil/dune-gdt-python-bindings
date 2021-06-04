@@ -14,7 +14,8 @@ jupyter:
 
 ```python
 # wurlitzer: display dune's output in the notebook
-%load_ext wurlitzer
+# %load_ext wurlitzer
+
 %matplotlib notebook
 
 import numpy as np
@@ -154,14 +155,15 @@ def assemble_coupling_ops(spaces, ss, nn):
     coupling_grid = dd_grid.coupling_grid(ss, nn) # CouplingGridProvider
     inside_space = spaces[ss]
     outside_space = spaces[nn]
-#     sparsity_pattern = make_element_and_intersection_sparsity_pattern(inside_space)
+    
+    # ***** TODO! find the correct sparsity pattern ******
+    sparsity_pattern = make_element_and_intersection_sparsity_pattern(outside_space)
 
     coupling_op = MatrixOperator(
         coupling_grid,
         inside_space,
         outside_space,
-        # ***** which sparsity pattern ******
-#          sparsity_pattern
+        sparsity_pattern
       )
 
     coupling_form = BilinearForm(coupling_grid)
@@ -194,39 +196,55 @@ def assemble_coupling_ops(spaces, ss, nn):
     local_bilinear_form = LocalCouplingIntersectionIntegralBilinearForm(integrand) 
     
     filter_ = ApplyOnInnerIntersectionsOnce(coupling_grid)
-    coupling_form += (local_bilinear_form, filter_)
+#     coupling_form += (local_bilinear_form, filter_)
+    coupling_form += local_bilinear_form
     
     coupling_op.append(coupling_form)
     
     #walker on coupling grid
     walker = Walker(coupling_grid)
     walker.append(coupling_op)
+    # TODO: DIRICHLET Constraints
     walker.walk()
-#     coupling_op.assemble()
-#     return coupling_op
+    coupling_op.assemble()
+    return coupling_op
 ```
 
 ```python
 for ss in range(S):
+    print(f"index: {ss}, with neigbors {dd_grid.neighbors(ss)}")
     for nn in dd_grid.neighbors(ss):
+        print(f"neighbor: {nn}...", end='')
         coupling_ops = assemble_coupling_ops(spaces, ss, nn)
-        # additional terms to diagonal
-        ops[ss][ss] += coupling_ops[0]
-        ops[nn][nn] += coupling_ops[3]
+        try:
+            coupling_ops = assemble_coupling_ops(spaces, ss, nn)
+            print("succeeded")
+            ops[ss][nn] = coupling_ops
+        except:
+            print("failed")
+#         print(coupling_ops)
+#         # additional terms to diagonal
+#         ops[ss][ss] += coupling_ops[0]
+#         ops[nn][nn] += coupling_ops[3]
         
-        # coupling terms
-        if ops[ss][nn] is None:
-            ops[ss][nn] = [coupling_ops[1]]
-        else:
-            ops[ss][nn] += coupling_ops[1]
-        if ops[nn][ss] is None:
-            ops[nn][ss] = [coupling_ops[2]]
-        else:
-            ops[nn][ss] += coupling_ops[2]
+#         # coupling terms
+#         if ops[ss][nn] is None:
+#             ops[ss][nn] = [coupling_ops[1]]
+#         else:
+#             ops[ss][nn] += coupling_ops[1]
+#         if ops[nn][ss] is None:
+#             ops[nn][ss] = [coupling_ops[2]]
+#         else:
+#             ops[nn][ss] += coupling_ops[2]
+```
+
+```python
+print(ops)
 ```
 
 ```python
 from pymor.operators.block import BlockOperator
 
+# TODO: BINDINGS for the gdt - operator ! 
 block_op = BlockOperator(ops)
 ```
